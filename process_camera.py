@@ -2,7 +2,7 @@ import random
 import numpy as np
 import cv2
 import time
-import simulator, apply_patch
+import simulator, evaluation_apply_patch
 from tensorflow import keras
 
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     image = cv2.imread("stop_sign.jpg")
     image, pos, target_im, status = image_pre_process(image)
     y = time.time()
-    apply_patch.patch_image(image, pos, target_im, status)
+    evaluation_apply_patch.patch_image(image, pos, target_im, status)
     x = time.time()
     print(x-y)
 

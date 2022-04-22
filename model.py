@@ -55,52 +55,55 @@ classes_ = { 1:'Speed limit (20km/h)',
             42:'End of no passing',
             43:'End no passing vehicle with a weight greater than 3.5 tons' }
 
+def model_train():
+    input_shape = (30,30,3)
+    data = []
+    labels = []
+    classes = 43
+    path = os.path.join(os.getcwd(),"archive","Train")
+    for i in range(classes):
+        path_ = os.path.join(path,str(i))
+        images = os.listdir(path_)
+        for j in images:
+            try:
+                image = cv2.imread(f"{path_}/{j}")
+                image = cv2.resize(image,(30,30))
+                image = np.array(image)
+                data.append(image)
+                labels.append(i)
+            except:
+                print("Error loading image")
 
-input_shape = (30,30,3)
-data = []
-labels = []
-classes = 43
-path = os.path.join(os.getcwd(),"archive","Train")
-for i in range(classes):
-    path_ = os.path.join(path,str(i))
-    images = os.listdir(path_)
-    for j in images:
-        try:
-            image = cv2.imread(f"{path_}/{j}")
-            image = cv2.resize(image,(30,30))
-            image = np.array(image)
-            data.append(image)
-            labels.append(i)
-        except:
-            print("Error loading image")
+    data = np.array(data)
+    labels = np.array(labels)
+    x_train, x_test, y_train, y_test = train_test_split(data,labels,test_size=0.4,random_state=42)
 
-data = np.array(data)
-labels = np.array(labels)
-x_train, x_test, y_train, y_test = train_test_split(data,labels,test_size=0.4,random_state=42)
-
-y_train = keras.utils.to_categorical(y_train,classes)
-y_test = keras.utils.to_categorical(y_test,classes)
+    y_train = keras.utils.to_categorical(y_train,classes)
+    y_test = keras.utils.to_categorical(y_test,classes)
 
 
 
-model = Sequential()
-model.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu', input_shape=input_shape))
-model.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu'))
-model.add(MaxPool2D(pool_size=(2, 2)))
-model.add(Dropout(rate=0.25))
-model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
-model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
-model.add(MaxPool2D(pool_size=(2, 2)))
-model.add(Dropout(rate=0.25))
-model.add(Flatten())
-model.add(Dense(256, activation='relu'))
-model.add(Dropout(rate=0.5))
-model.add(Dense(43, activation='softmax'))
-#Compilation of the model
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model = Sequential()
+    model.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu', input_shape=input_shape))
+    model.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu'))
+    model.add(MaxPool2D(pool_size=(2, 2)))
+    model.add(Dropout(rate=0.25))
+    model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
+    model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
+    model.add(MaxPool2D(pool_size=(2, 2)))
+    model.add(Dropout(rate=0.25))
+    model.add(Flatten())
+    model.add(Dense(256, activation='relu'))
+    model.add(Dropout(rate=0.5))
+    model.add(Dense(43, activation='softmax'))
+    #Compilation of the model
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-epoches = 15
-batchs = 32
-model.fit(x_train,y_train,batch_size=batchs, epochs=epoches,validation_data=(x_test,y_test))
-model.save("signs_classifier_model.h5")
-print("Model saved!")
+    epoches = 15
+    batchs = 32
+    model.fit(x_train,y_train,batch_size=batchs, epochs=epoches,validation_data=(x_test,y_test))
+    model.save("signs_classifier_model.h5")
+    print("Model saved!")
+
+if "__main__" == __name__:
+    model_train()
