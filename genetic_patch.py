@@ -2,6 +2,7 @@ import random
 import os
 
 import imutils
+import time
 import cv2
 import csv
 import numpy as np
@@ -18,6 +19,8 @@ from model import classes_
 
 random.seed(1756)
 patch_dir = "patches"
+patch_images_dir = "patch_images"
+initial_patch_dir = "initial_patches"
 p_form = ["p_circle","p_square"]
 images_dir = "images_"
 
@@ -25,12 +28,26 @@ def folder_creation():
     path = os.listdir()
     try:
         if patch_dir not in path:
-            print("\033[93m     Folder for the \033[4mpatches\033[0m \033[93m have been created.\033[0m")
+            print("\033[93m     Folder for the \033[4m/patches\033[0m \033[93m have been created.\033[0m")
             os.mkdir(patch_dir)
             for i in p_form:
                 os.mkdir(f"{patch_dir}/{i}")
         else:
-            print("\033[93m     Folder for \033[4mpatches\033[0m \033[93m already exists.  \033[0m")
+            print("\033[93m     Folder for \033[4m/patches\033[0m \033[93m already exists.  \033[0m")
+
+
+        if initial_patch_dir not in path:
+            print("\033[93m     Folder for the \033[4m/initial_patches\033[0m \033[93m have been created.\033[0m")
+            os.mkdir(initial_patch_dir)
+
+        else:
+            print("\033[93m     Folder for \033[4m/initial_patches\033[0m \033[93m already exists.  \033[0m")
+
+        if patch_images_dir not in path:
+            print("\033[93m     Folder for the \033[4m/patches_images\033[0m \033[93m have been created.\033[0m")
+            os.mkdir(patch_images_dir)
+        else:
+            print("\033[93m     Folder for \033[4m/patches_images\033[0m \033[93m already exists.  \033[0m")
 
     except:
         print("\033[91m An error occured. \033[0m")
@@ -57,7 +74,7 @@ def initial_patch(image,form):
         B = np.random.randint(max(0,b-thresholdB),min(255,b+thresholdB),(patch_size,patch_size)).astype(np.uint8)
         patch = cv2.merge([B,G,R])
 
-        return patch
+        return patch,0
 
     if form == "circle":
         patch_size = int(image_size/3)
@@ -76,7 +93,7 @@ def initial_patch(image,form):
 
         patch = cv2.merge([B,G,R])
 
-        return patch
+        return patch,index
 
 
 def calculate_diff(a,b):
@@ -154,36 +171,59 @@ def tournament(x1,x2):
 def mutation(patches):
     return mutation_patches.mutate(patches)
 
+def final_patch_image(image,patch,pos,angle):
+    OTarget = image.copy()
+    x_pos, y_pos = pos
+    im = imutils.rotate_bound(patch,angle)
+    x,y,_ = im.shape
+    part = OTarget[x_pos:x_pos+x,y_pos:y_pos+y]
+    w = im == (0,0,0)
+    im[w] = part[w]
+    OTarget[x_pos:x_pos+x,y_pos:y_pos+y] = im
+    cv2.imwrite(f"patches_images/final_patch_{pos[0]}X{pos[1]}Y_{angle}A_.png",OTarget)
 
-def genetic(target_image,model,t_class_arr):
+
+
+
+
+
+def genetic(target_image,model,t_class_arr,no_target):
     while True:
         try:
-            form = input("\033[96mType of patches to apply (circle,square) >\033[0m")
+            form = input("\nType of patches to apply (circle,square) >")
             numb_gen = 100
-            population = 150
+            population = 100
             tournament_k = 2
             best = population
             x_target, _ = target_image.shape[0], target_image.shape[1]
 
-            patch = initial_patch(target_image,form)
+            patch, index = initial_patch(target_image,form)
             cv2.imwrite(f"initial_patches/{form}.png",patch)
             break
         except:
             print("\033[91m     Please, enter a correct form. \033[0m")
-
-    print("Initial patch has been saved!")
+    print(f"\033[1;32;40m{form}\033[0m has been selected.")
+    print("\033[32mInitial patch has been saved in \033[0m \033[0;30;42m/initial_patches\033[0m")
     patches = np.array([patch])
     color,r,g,b = mean(target_image)
     R_channel = np.full((patch.shape[0],patch.shape[0]),r)
     G_channel = np.full((patch.shape[0],patch.shape[0]),g)
     B_channel = np.full((patch.shape[0],patch.shape[0]),b)
-    patch_color = cv2.merge([B_channel,G_channel,R_channel])
+
+    if form == "circle":
+        R_channel[:,:][index] = 0
+        G_channel[:,:][index] = 0
+        B_channel[:,:][index] = 0
+        patch_color = cv2.merge([B_channel,G_channel,R_channel])
+    else:
+        patch_color = cv2.merge([B_channel,G_channel,R_channel])
+
     color_patch = [patch_color for _ in range(5)]
     color_patch = np.squeeze(np.array([np.expand_dims(cv2.resize(i,(patch.shape[0],patch.shape[0])),0) for i in color_patch]),1)
     black_patch = np.zeros((5,patch.shape[0],patch.shape[0],3))
     patches = np.append(patches,color_patch,axis=0)
     patches = np.append(patches,black_patch,axis=0)
-    patches = np.append(patches,[initial_patch(target_image,form) for _ in range(1,population-10)],axis=0)
+    patches = np.append(patches,[initial_patch(target_image,form)[0] for _ in range(1,population-10)],axis=0)
 
     sizes_patches = []
     for i in range(4,7,1):
@@ -202,16 +242,17 @@ def genetic(target_image,model,t_class_arr):
     results_pred = []
     results_patch = []
     results_pos = []
-    successfull = False
+    results_angle = []
     work_image = target_image.copy()
     for e in range(len(sizes_patches)):                          #Loop through different patches sizes
         x_t_s, y_t_s, _ = target_image.shape
-
+        successfull = False
         target_image = cv2.resize(work_image,(30,30))
         target_image = np.expand_dims(target_image,0)
         pred = model.predict(target_image)[0]
         value_higher = np.argmax(pred)
-        t_class_arr[value_higher] = 0
+        if no_target:
+            t_class_arr[value_higher] = 0
         close_n = calculate_diff(pred,t_class_arr)
         x_max, y_max, x_min, y_min = work_image.shape[0],work_image.shape[1],0,0
 
@@ -289,7 +330,9 @@ def genetic(target_image,model,t_class_arr):
                 results_pred = f_result_pred.copy()
                 results_patch = f_result_patch.copy()
                 results_angle = f_result_angle.copy()
+                results_pos = f_result_position.copy()
                 final_patches[e] = f_result_patch
+
                 print(f_result_pred[:5])
                 print(f_result_position[:5])
                 print(f_result_prob[:5])
@@ -312,7 +355,10 @@ def genetic(target_image,model,t_class_arr):
                 cv2.imwrite("best_temp_patch.png",final_patches[e][0])
 
             else:
-                cv2.imwrite(f"patches/p_{form}/final_patch{e}.png",results_patch[results_pred.index(min(results_pred))])
+                pos = results_pos[results_pred.index(min(results_pred))]
+                angle = results_angle[results_pred.index(min(results_pred))]
+                cv2.imwrite(f"patches/p_{form}/final_patch{sizes_patches[e]}_{pos[0]}X{pos[1]}Y_{angle}A_.png",results_patch[results_pred.index(min(results_pred))])
+                final_patch_image(target_image,results_patch[results_pred.index(min(results_pred))],pos,angle)
                 f = open("position_patch.csv","w")
                 writerID = csv.writer(f,lineterminator='\n')
                 writerID.writerow(results_pos[results_pred.index(min(results_pred))])
@@ -330,14 +376,14 @@ def all():
         print(f"\033[91m     None image have been found. Please insert an image in the corresponding folder {images_dir}. \033[0m")
         exit()
     else:
-        print("\033[2;37;35mImages found:\033[0m")
+        print("\033[4m\033[2;37;35mImages found:\033[0m")
         count = 0
         for i in images:
             print(f"    [\033[32m{count}\033[0m] {i}")
 
     while True:
         try:
-            image_selected = int(input("\n\033[96mEnter the number of the Image to attack (should be a number) >\033[0m"))
+            image_selected = int(input("\nEnter the number of the Image to attack (should be a number) >"))
             image = cv2.imread(os.path.join(images_dir,images[image_selected]))
             print(f"\033[1;32;40m{images[image_selected]}\033[0m has been selected.")
             break
@@ -346,21 +392,23 @@ def all():
 
     while True:
         try:
-            t_class = input("\033[96mTarget class or not(should be a number or empty for no target ) >\033[0m")
+            t_class = input("\nTarget class or not(should be a number or empty for no target ) >")
             if t_class == "":
                 print(f"\033[1;32;40mNo Target\033[0m has been selected.")
                 t_class_arr = np.ones(43)
+                no_target = True
             else:
                 print(f"\033[1;32;40m{classes_[int(t_class)+1]}\033[0m has been selected.")
                 t_class_arr = np.zeros(43)
-                t_class_arr[t_class] = 1
+                t_class_arr[int(t_class)] = 1
+                no_target = False
             break
         except:
             print("\033[91m     Please, enter a correct number. \033[0m")
 
     folder_creation()
     model = keras.models.load_model("signs_classifier_model.h5")
-    genetic(image,model,t_class_arr)
+    genetic(image,model,t_class_arr,no_target)
 
 if __name__ == "__main__":
     all()

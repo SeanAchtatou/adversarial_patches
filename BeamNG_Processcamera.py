@@ -2,7 +2,7 @@ import random
 import numpy as np
 import cv2
 import time
-import simulator, evaluation_apply_patch
+import BeamNG_Simulator, evaluation_apply_patch
 from tensorflow import keras
 
 
@@ -25,8 +25,8 @@ def image_pre_process(image):
 
     x, y, _ = image.shape
     for k in masks:
-        for i in range(0,y-k,100):
-            for j in range(0,x-k,100):
+        for i in range(0,y-k,10):
+            for j in range(0,x-k,10):
                 image = imageO[j:j+k,i:i+k]
                 temp_im = image.copy()
                 image = cv2.resize(image,(30,30))
@@ -42,8 +42,8 @@ def image_pre_process(image):
 
     cv2.imshow("T",im_f)
     cv2.waitKey(0)
-    cv2.imwrite(f"images_detected/target_{str(time.time()*1000)[:10]}.png",im_f)
-    cv2.imwrite(f"images_detected/original_{str(time.time()*1000)[:9]}.png",imageO)
+    cv2.imwrite(f"beamng_detected/target_{str(time.time()*1000)[:10]}.png",im_f)
+    cv2.imwrite(f"beamng_detected/original_{str(time.time()*1000)[:9]}.png",imageO)
     return imageO, position, im_f, status
 
 

@@ -9,8 +9,8 @@ from tensorflow import keras
 import math
 
 model = keras.models.load_model("signs_classifier_model.h5")
-patch_images = "patch_images"
-patch_images_f = "patch_images_full"
+patch_images = "beamng_detected"
+patch_images_f = "beamng_patch"
 
 def patch_image(image,pos,target_image,patch):
     x_t_s, y_t_s, _ = target_image.shape
