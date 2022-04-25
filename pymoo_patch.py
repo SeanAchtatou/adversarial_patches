@@ -80,7 +80,7 @@ def Algorithm(size_patch,t_class,model,image):
     patch_temp = np.reshape([0 for _ in range(last_)],(size_patch,size_patch,3)).astype(np.uint8)
     x_max,y_max,_ = imutils.rotate_bound(patch_temp,45).shape
 
-    x_l = [50 if ((i+1)%3)==0 else 0 for i in range(n_var)]
+    x_l = [100 if ((i+1)%3)==0 else 0 for i in range(n_var)]
     x_u = []
     for i in range(n_var-1):
         if i == (last_+2):
@@ -93,7 +93,7 @@ def Algorithm(size_patch,t_class,model,image):
             if ((i+1)%3)==0:
                 x_u.append(255)
             else:
-                x_u.append(100)
+                x_u.append(150)
 
 
     class MyProblem(Problem):
@@ -131,10 +131,10 @@ def Algorithm(size_patch,t_class,model,image):
                 final_image.append(OTarget)
 
             pred = model.predict(np.array(final_image))
-            print(pred.argmax(1)[:20])
+            print(f"Class predicted: {pred.argmax(1)[:20]}")
             #print([i for i in range(len(pred))])
-            #print(pred[np.array([i for i in range(len(pred))]),pred.argmax(1)])
-            print(pred[:,t_class_number][:20])
+            #print(pred[np.array([i for i in range(len(pred))][:20]),pred.argmax(1)[:20]])
+            print(f"Probability of the class of the original image: {pred[:,14][:20]}")
             f1 = calculate_diff(pred,t_class)
 
             """ep = 0.8
@@ -169,7 +169,7 @@ def Algorithm(size_patch,t_class,model,image):
         eliminate_duplicates=True
     )
 
-    termination = get_termination("n_gen", 500)
+    termination = get_termination("n_gen", 200)
 
     res = minimize(vectorized_problem,
                    algorithm,
@@ -182,11 +182,22 @@ def Algorithm(size_patch,t_class,model,image):
     print("Best solution found: \nX = %s\nF = %s" % (res.X, res.F))
     try:
         image_flat = res.X
-        image = np.reshape(image_flat,(size_patch,size_patch,3)).astype(np.uint8)
-        cv2.imshow("P",image)
-        cv2.waitKey(1)
+        patch_ = image_flat[:-3]
+        height_ = image_flat[-3]
+        width_ = image_flat[-2]
+        angle_ = image_flat[-1]
+        patch = np.reshape(patch_,(size_patch,size_patch,3)).astype(np.uint8)
+        OTarget = image.copy()
+        im = imutils.rotate_bound(patch,angle_)
+        x,y,_ = im.shape
+        part = OTarget[height_:height_+x,width_:width_+y]
+        w = im == (0,0,0)
+        im[w] = part[w]
+        OTarget[height_:height_+x,width_:width_+y] = im
+        cv2.imshow(f"Best Patch for size-{size_patch}",OTarget)
+        cv2.waitKey(0)
     except:
-        print("No solution found here")
+        print("No solution found here.")
 
 
 def main(image,model,t_class):
@@ -202,7 +213,8 @@ def main(image,model,t_class):
         sizes_patches.append(b)
 
     for i in sizes_patches:
-        Algorithm(i,t_class,model,image)
+        for _ in range(5):
+            Algorithm(i,t_class,model,image)
 
 
 if "__main__" == __name__:
