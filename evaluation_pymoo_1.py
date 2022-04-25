@@ -12,6 +12,8 @@ from pymoo.optimize import minimize
 import cv2
 import os
 import imutils
+import time
+
 siye = 2
 t_class_arr = np.zeros(siye)
 t_class_arr[1] = 1
@@ -23,8 +25,6 @@ def calculate_diff(a,b):
         x += (i-b[count])**2
         count += 1"""
     cc = tf.keras.metrics.CategoricalCrossentropy()
-    #ch = tf.keras.losses.CategoricalHinge()
-    #hh = tf.keras.losses.Hinge()
     c = cc(a,b).numpy()
     return c
 
@@ -37,17 +37,22 @@ class MyProblem(Problem):
                          xu=[1 for _ in range(siye)])
 
     def _evaluate(self, X, out, *args, **kwargs):
-        f1 = []
+        f2 = []
+        x = time.time()
         for i in X:
-            f1.append(((i[0] - 0) **2) + ((i[1] - 1)**2))
-        out["F"] = np.column_stack([f1])
+            f2.append(((i[0] - 0) **2) + ((i[1] - 1)**2))
+        y = time.time()
+        print(y-x)
+
+        f1 = (((X[:,0] - 0) **2) + ((X[:,1] - 1)**2))
+        out["F"] = np.column_stack([f2])
 
 
 
 vectorized_problem = MyProblem()
 algorithm = GA(
-    pop_size=100,
-    n_offsprings=10,
+    pop_size=200,
+    n_offsprings=50,
     sampling=get_sampling("real_random"),
     crossover=get_crossover("real_sbx", prob=0.9, eta=15),
     mutation=get_mutation("real_pm", eta=20),

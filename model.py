@@ -102,8 +102,8 @@ def model_train():
     epoches = 15
     batchs = 32
     model.fit(x_train,y_train,batch_size=batchs, epochs=epoches,validation_data=(x_test,y_test))
-    model.save("signs_classifier_model.h5")
-    print("Model saved!")
+    #model.save("signs_classifier_model.h5")
+    #print("Model saved!")
 
 if "__main__" == __name__:
     model_train()
