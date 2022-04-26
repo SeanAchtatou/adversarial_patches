@@ -67,12 +67,11 @@ def calculate_diff(a,b):
     for i in a:
         x.append(np.sum((i-b)**2))
 
-
-    """cc = tf.keras.metrics.CategoricalCrossentropy()
-    c = cc(a,b).numpy()"""
+    #cc = tf.keras.metrics.CategoricalCrossentropy()
+    #c = [cc(i,b).numpy() for i in a]
     return x
 
-def Algorithm(size_patch,t_class,model,image):
+def Algorithm(size_patch,t_class,model,image,form):
     x,y,z = image.shape
     n_var = ((size_patch**2)*3)+3
     last_ = (size_patch**2)*3
@@ -80,7 +79,10 @@ def Algorithm(size_patch,t_class,model,image):
     patch_temp = np.reshape([0 for _ in range(last_)],(size_patch,size_patch,3)).astype(np.uint8)
     x_max,y_max,_ = imutils.rotate_bound(patch_temp,45).shape
 
-    x_l = [100 if ((i+1)%3)==0 else 0 for i in range(n_var)]
+    x_l = [150 if ((i+1)%3)==0 else 0 for i in range(n_var)]
+    x_l[-1] = 0
+    x_l[-2] = 0
+    x_l[-3] = 0
     x_u = []
     for i in range(n_var-1):
         if i == (last_+2):
@@ -111,8 +113,14 @@ def Algorithm(size_patch,t_class,model,image):
             angles_ = X[:,-1]
             patches = np.reshape(patches_,(len(X),size_patch,size_patch,3)).astype(np.uint8)
 
-            final_image = []
+            if form == "circle":
+                radius = patches.shape[1]/2
+                y, x = np.ogrid[-radius: radius, -radius: radius]
+                index = x**2 + y**2 > radius**2
+                for i in range(len(patches)):
+                    patches[i][:,:,:][index] = 0
 
+            final_image = []
             g1 = []
             g2 = []
             #t1 = time.time()
@@ -131,10 +139,10 @@ def Algorithm(size_patch,t_class,model,image):
                 final_image.append(OTarget)
 
             pred = model.predict(np.array(final_image))
-            print(f"Class predicted: {pred.argmax(1)[:20]}")
+            print(f"Class predicted: \n {pred.argmax(1)[:20]}")
             #print([i for i in range(len(pred))])
             #print(pred[np.array([i for i in range(len(pred))][:20]),pred.argmax(1)[:20]])
-            print(f"Probability of the class of the original image: {pred[:,14][:20]}")
+            print(f"Probability of the class of the original image: \n{pred[:,14][:20]}")
             f1 = calculate_diff(pred,t_class)
 
             """ep = 0.8
@@ -187,6 +195,10 @@ def Algorithm(size_patch,t_class,model,image):
         width_ = image_flat[-2]
         angle_ = image_flat[-1]
         patch = np.reshape(patch_,(size_patch,size_patch,3)).astype(np.uint8)
+        radius = patch.shape[0]/2
+        y, x = np.ogrid[-radius: radius, -radius: radius]
+        index = x**2 + y**2 > radius**2
+        patch[:,:,:][index] = 0
         OTarget = image.copy()
         im = imutils.rotate_bound(patch,angle_)
         x,y,_ = im.shape
@@ -200,21 +212,21 @@ def Algorithm(size_patch,t_class,model,image):
         print("No solution found here.")
 
 
-def main(image,model,t_class):
+def main(image,model,t_class,form):
     global color_main
     x,y,z = image.shape
     color, mean_r, mean_g, mean_b = mean(image)
     color_main = color
     sizes_patches = []
-    for i in range(4,7,1):
+    for i in range(4,10,1):
         b = int(x/i)
         if b%2 == 1:
             b += 1
         sizes_patches.append(b)
 
     for i in sizes_patches:
-        for _ in range(5):
-            Algorithm(i,t_class,model,image)
+        for _ in range(1):
+            Algorithm(i,t_class,model,image,form)
 
 
 if "__main__" == __name__:
@@ -256,6 +268,15 @@ if "__main__" == __name__:
         except:
             print("\033[91m     Please, enter a correct number. \033[0m")
 
+    while True:
+        try:
+            form = input("\nType of patches to apply (circle,square) >")
+            break
+        except:
+            print("\033[91m     Please, enter a correct form. \033[0m")
+
+    print(f"\033[1;32;40m{form}\033[0m has been selected.")
+
     folder_creation()
     model = keras.models.load_model("signs_classifier_model.h5")
-    main(image,model,t_class_arr)
+    main(image,model,t_class_arr,form)
