@@ -21,7 +21,8 @@ from pymoo.optimize import minimize
 
 random.seed(1756)
 patch_dir = "patches"
-p_form = ["p_circle","p_square"]
+
+p_form = ["p_circle","p_square","p_image"]
 images_dir = "images_"
 color_main = None
 t_class_number = 0
@@ -54,11 +55,11 @@ def mean(image):
     mean_g = int(np.mean(g))
     mean_b = int(np.mean(b))
 
-    if (mean_r >= (mean_g and mean_b)):
+    if (mean_r >= mean_g) and (mean_r >= mean_b):
         return "R",mean_r,mean_g,mean_b
-    if (mean_g >= (mean_b and mean_r)):
+    if (mean_g >= mean_b) and (mean_g >= mean_r):
         return "G",mean_r,mean_g,mean_b
-    if (mean_b >= (mean_g and mean_r)):
+    if (mean_b >= mean_g) and (mean_b >= mean_r):
         return "B",mean_r,mean_g,mean_b
 
 
@@ -72,6 +73,7 @@ def calculate_diff(a,b):
     return x
 
 def Algorithm(size_patch,t_class,model,image,form):
+    original_prob = np.argmax(model.predict(np.expand_dims(cv2.resize(image,(30,30)),0)))
     x,y,z = image.shape
     n_var = ((size_patch**2)*3)+3
     last_ = (size_patch**2)*3
@@ -79,23 +81,30 @@ def Algorithm(size_patch,t_class,model,image,form):
     patch_temp = np.reshape([0 for _ in range(last_)],(size_patch,size_patch,3)).astype(np.uint8)
     x_max,y_max,_ = imutils.rotate_bound(patch_temp,45).shape
 
-    x_l = [150 if ((i+1)%3)==0 else 0 for i in range(n_var)]
+    if color_main == "R":
+        channel_c = 3
+    if color_main == "G":
+        channel_c = 2
+    if color_main == "B":
+        channel_c = 1
+
+    x_l = [200 if ((i+1)%channel_c)==0 else 0 for i in range(n_var)]
     x_l[-1] = 0
     x_l[-2] = 0
     x_l[-3] = 0
     x_u = []
-    for i in range(n_var-1):
-        if i == (last_+2):
+    for i in range(n_var):
+        if i == (last_):
             x_u.append(x-x_max)
         if i == (last_+1):
             x_u.append(y-y_max)
-        if i == (last_+3):
+        if i == (last_+2):
             x_u.append(360)
-        else:
-            if ((i+1)%3)==0:
+        if (i < last_):
+            if ((i+1)%channel_c)==0:
                 x_u.append(255)
             else:
-                x_u.append(150)
+                x_u.append(100)
 
 
     class MyProblem(Problem):
@@ -121,11 +130,15 @@ def Algorithm(size_patch,t_class,model,image,form):
                     patches[i][:,:,:][index] = 0
 
             final_image = []
-            g1 = []
-            g2 = []
+            #b_set = []
+            #g_set = []
+            #r_set = []
             #t1 = time.time()
             for i in range(len(patches)):
-                b_, g_, r_ = mean_patch(patches[i])
+                #b_, g_, r_ = mean_patch(patches[i])
+                #b_set.append(b_)
+                #g_set.append(g_)
+                #r_set.append(r_)
                 OTarget = image.copy()
                 im = imutils.rotate_bound(patches[i],angles_[i])
                 x,y,_ = im.shape
@@ -139,31 +152,30 @@ def Algorithm(size_patch,t_class,model,image,form):
                 final_image.append(OTarget)
 
             pred = model.predict(np.array(final_image))
-            print(f"Class predicted: \n {pred.argmax(1)[:20]}")
-            #print([i for i in range(len(pred))])
-            #print(pred[np.array([i for i in range(len(pred))][:20]),pred.argmax(1)[:20]])
-            print(f"Probability of the class of the original image: \n{pred[:,14][:20]}")
+            print(f"Class predicted: \n {pred.argmax(1)[:5]}")
+            print(f"Probability of highest class: \n{pred[np.array([i for i in range(len(pred))][:5]),pred.argmax(1)[:5]]}")
+            print(f"Probability of the class of the original image: \n{pred[:,original_prob][:5]}")
             f1 = calculate_diff(pred,t_class)
 
-            """ep = 0.8
-                if color_main == "R":
-                    g1_ = b_ - (ep*r_)
-                    g2_ = g_ - (ep*r_)
-                if color_main == "G":
-                    g1_ = r_ - (ep*g_)
-                    g2_ = b_ - (ep*g_)
-                if color_main == "B":
-                    g1_ = r_ - (ep*b_)
-                    g2_ = g_ - (ep*b_)
-
-                g1.append(g1_)
-                g2.append(g2_)"""
+            """b_set = np.array(b_set)
+            g_set = np.array(g_set)
+            r_set = np.array(r_set)
+            eps = 0.5
+            if color_main == "R":
+                g1_ = b_set - (eps*r_set)
+                g2_ = g_set - (eps*r_set)
+            if color_main == "G":
+                g1_ = r_set - g_set
+                g2_ = b_set - g_set
+            if color_main == "B":
+                g1_ = r_set - b_set
+                g2_ = g_set - b_set"""
 
             #t2 = time.time()
             #print(f"Time: {t2-t1}")
 
             out["F"] = np.column_stack([f1])
-            #out["G"] = np.column_stack([g1, g2])
+            #out["G"] = np.column_stack([g1_, g2_])
 
     vectorized_problem = MyProblem()
     pop_size = 200
@@ -195,10 +207,13 @@ def Algorithm(size_patch,t_class,model,image,form):
         width_ = image_flat[-2]
         angle_ = image_flat[-1]
         patch = np.reshape(patch_,(size_patch,size_patch,3)).astype(np.uint8)
-        radius = patch.shape[0]/2
-        y, x = np.ogrid[-radius: radius, -radius: radius]
-        index = x**2 + y**2 > radius**2
-        patch[:,:,:][index] = 0
+
+        if form == "circle":
+            radius = patch.shape[0]/2
+            y, x = np.ogrid[-radius: radius, -radius: radius]
+            index = x**2 + y**2 > radius**2
+            patch[:,:,:][index] = 0
+
         OTarget = image.copy()
         im = imutils.rotate_bound(patch,angle_)
         x,y,_ = im.shape
@@ -206,8 +221,11 @@ def Algorithm(size_patch,t_class,model,image,form):
         w = im == (0,0,0)
         im[w] = part[w]
         OTarget[height_:height_+x,width_:width_+y] = im
-        cv2.imshow(f"Best Patch for size-{size_patch}",OTarget)
-        cv2.waitKey(0)
+        cv2.imwrite(f"{patch_dir}/p_{form}/final_patch_{size_patch}S_{height_}X{width_}Y_{angle_}A_{int(time.time())}T.png",patch)
+        cv2.imwrite(f"{patch_dir}/{p_form[2]}/patch_image_{size_patch}S_{height_}X{width_}Y_{angle_}A_{int(time.time())}T.png",OTarget)
+        cv2.imshow(f"Best patch for size-{size_patch}",patch)
+        cv2.imshow(f"Position of best patch in Image",OTarget)
+        cv2.waitKey(1)
     except:
         print("No solution found here.")
 
@@ -218,15 +236,14 @@ def main(image,model,t_class,form):
     color, mean_r, mean_g, mean_b = mean(image)
     color_main = color
     sizes_patches = []
-    for i in range(4,10,1):
+    for i in range(3,8,1):
         b = int(x/i)
         if b%2 == 1:
             b += 1
         sizes_patches.append(b)
 
     for i in sizes_patches:
-        for _ in range(1):
-            Algorithm(i,t_class,model,image,form)
+        Algorithm(i,t_class,model,image,form)
 
 
 if "__main__" == __name__:
@@ -241,6 +258,7 @@ if "__main__" == __name__:
         count = 0
         for i in images:
             print(f"    [\033[32m{count}\033[0m] {i}")
+            count += 1
 
     while True:
         try:
@@ -253,10 +271,14 @@ if "__main__" == __name__:
 
     while True:
         try:
+            print(f"Road Signs classes: \n {classes_}")
             t_class = input("\nTarget class or not(should be a number or empty for no target ) >")
             if t_class == "":
-                print(f"\033[1;32;40mNo Target\033[0m has been selected.")
-                t_class_arr = np.ones(43)
+                print(f"\033[1;32;40mNo Target\033[0m has been selected. Random one chosen.")
+                t_class_arr = np.zeros(43)
+                t_class = np.random.randint(0,43)
+                t_class_arr[int(t_class)] = 1
+                t_class_number = int(t_class)
                 no_target = True
             else:
                 print(f"\033[1;32;40m{classes_[int(t_class)+1]}\033[0m has been selected.")

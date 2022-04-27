@@ -27,17 +27,6 @@ def difference(im1,im2):
             B = np.random.randint(max(0,mean_b-j),min(255,mean_b+j),(50,50)).astype(np.uint8)
 
             print(i,j)
-            '''f, axar = plt.subplots(1,2)
-            patch = cv2.merge([R,G,B])
-            image[50:100,100:150] = patch
-            axar[0].imshow(image)
-            axar[0].axes.get_xaxis().set_visible(False)
-            axar[0].axes.get_yaxis().set_visible(False)
-            image[50:100,100:150] = im1
-            axar[1].imshow(image)
-            axar[1].axes.get_xaxis().set_visible(False)
-            axar[1].axes.get_yaxis().set_visible(False)
-            plt.show()'''
 
             patch = cv2.merge([R,G,B])
             axarr[count][countcount].imshow(patch)
@@ -58,7 +47,7 @@ def difference(im1,im2):
     return None
 
 
-image = cv2.imread("images_/stop_sign_close.jpg")
+image = cv2.imread("images_/pedestrian_sign.jpg")
 
 patch = np.random.randint(0,255,(50,50,3))
 apply_location = image[50:100,100:150].copy()
