@@ -178,7 +178,7 @@ def Algorithm(size_patch,t_class,model,image,form):
             #out["G"] = np.column_stack([g1_, g2_])
 
     vectorized_problem = MyProblem()
-    pop_size = 200
+    pop_size = 300
     algorithm = GA(
         pop_size=pop_size,
         n_offsprings=100,
@@ -189,7 +189,7 @@ def Algorithm(size_patch,t_class,model,image,form):
         eliminate_duplicates=True
     )
 
-    termination = get_termination("n_gen", 200)
+    termination = get_termination("n_gen", 500)
 
     res = minimize(vectorized_problem,
                    algorithm,
@@ -302,3 +302,9 @@ if "__main__" == __name__:
     folder_creation()
     model = keras.models.load_model("signs_classifier_model.h5")
     main(image,model,t_class_arr,form)
+
+#For untargeted attack, modify in order to retrieve the best one with best probabilities
+#, modify the array compared, respective to the best class.
+#For targetd attack, check if at the end, we have the resepctive class target, if yes, provide
+#the probabilities obtained, and the image, and patch. If not, provide which class is the best
+#with the image and the patch. Thus, we should re-run the algorithm with it.
