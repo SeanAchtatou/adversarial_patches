@@ -146,7 +146,7 @@ def Algorithm(size_patch,t_class,model,image,form):
                 w = im == (0,0,0)
                 im[w] = part[w]
                 OTarget[heights_[i]:heights_[i]+x,widths_[i]:widths_[i]+y] = im
-                cv2.imshow("P",OTarget)
+                cv2.imshow("Patch on Image",OTarget)
                 cv2.waitKey(1)
                 OTarget = cv2.resize(OTarget,(30,30))
                 final_image.append(OTarget)
@@ -221,10 +221,15 @@ def Algorithm(size_patch,t_class,model,image,form):
         w = im == (0,0,0)
         im[w] = part[w]
         OTarget[height_:height_+x,width_:width_+y] = im
+        OTarget_M = cv2.resize(OTarget,(30,30))
+        prob_final = model.predict(OTarget_M)
+        class_prob = prob_final.argmax(1)
+        prob = prob_final[class_prob]
         cv2.imwrite(f"{patch_dir}/p_{form}/final_patch_{size_patch}S_{height_}X{width_}Y_{angle_}A_{int(time.time())}T.png",patch)
         cv2.imwrite(f"{patch_dir}/{p_form[2]}/patch_image_{size_patch}S_{height_}X{width_}Y_{angle_}A_{int(time.time())}T.png",OTarget)
         cv2.imshow(f"Best patch for size-{size_patch}",patch)
         cv2.imshow(f"Position of best patch in Image",OTarget)
+        print(f"Classes/Prob predicted by the model with the best patch: {class_prob},{prob}")
         cv2.waitKey(1)
     except:
         print("No solution found here.")
